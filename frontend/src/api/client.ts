@@ -12,6 +12,10 @@ export const apiClient = axios.create({
 // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
+    // Add trailing slash to URL if not present (FastAPI requires it)
+    if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
+      config.url = config.url + '/'
+    }
     // Add auth token if available in future
     return config
   },

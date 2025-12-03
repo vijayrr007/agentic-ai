@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Any, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -22,6 +22,8 @@ class ExecutionResponse(BaseModel):
     id: str
     agent_id: str
     status: ExecutionStatus
+    input_data: Optional[Dict[str, Any]] = None
+    output_data: Optional[Dict[str, Any]] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     logs: Optional[str] = None

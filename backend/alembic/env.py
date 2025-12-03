@@ -15,6 +15,8 @@ from app.models.agent import Agent
 from app.models.execution import Execution
 from app.models.template import AgentTemplate
 from app.models.mcp_config import MCPServer
+from app.models.conversation import Conversation
+from app.models.message import Message
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

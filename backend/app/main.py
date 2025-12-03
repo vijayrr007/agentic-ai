@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api import agents, workspaces, executions, marketplace, mcp
+from app.api import agents, workspaces, executions, marketplace, mcp, conversations
 
 # Create FastAPI application
 app = FastAPI(
@@ -61,6 +61,12 @@ app.include_router(
     mcp.router,
     prefix=f"{settings.API_V1_PREFIX}/mcp",
     tags=["mcp"]
+)
+
+app.include_router(
+    conversations.router,
+    prefix=f"{settings.API_V1_PREFIX}/conversations",
+    tags=["conversations"]
 )
 
 

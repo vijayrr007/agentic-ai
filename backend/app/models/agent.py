@@ -25,6 +25,7 @@ class Agent(Base):
     workspace_id = Column(String, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    system_prompt = Column(Text, nullable=True)
     definition_type = Column(SQLEnum(DefinitionType), nullable=False, default=DefinitionType.ui)
     definition = Column(JSONB, nullable=False)
     version = Column(Integer, default=1, nullable=False)

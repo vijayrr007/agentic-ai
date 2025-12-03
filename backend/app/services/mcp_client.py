@@ -233,14 +233,148 @@ class BuiltInTools:
             raise RuntimeError(f"HTTP request failed: {str(e)}")
 
     @staticmethod
-    async def web_search(query: str) -> List[Dict[str, Any]]:
-        """Search the web (placeholder - requires actual search API)."""
-        # TODO: Integrate with actual search API (Google, Bing, etc.)
-        return [
-            {
-                "title": f"Result for: {query}",
-                "url": "https://example.com",
-                "snippet": "This is a placeholder search result"
+    async def web_search(query: str, max_results: int = 5) -> List[Dict[str, Any]]:
+        """Search the web using DuckDuckGo HTML scraping (more reliable)."""
+        try:
+            import httpx
+            from bs4 import BeautifulSoup
+            import urllib.parse
+            
+            # Encode the query
+            encoded_query = urllib.parse.quote_plus(query)
+            
+            # DuckDuckGo HTML search URL
+            url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+            
+            # Set up headers to mimic a browser
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Accept-Encoding": "gzip, deflate",
+                "DNT": "1",
+                "Connection": "keep-alive",
+                "Upgrade-Insecure-Requests": "1"
             }
-        ]
+            
+            # Make the request
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                
+                # Parse the HTML
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                results = []
+                
+                # Find search result divs
+                search_results = soup.find_all('div', class_='result')
+                
+                for result in search_results[:max_results]:
+                    try:
+                        # Extract title
+                        title_elem = result.find('a', class_='result__a')
+                        title = title_elem.get_text(strip=True) if title_elem else "No title"
+                        
+                        # Extract URL
+                        url_elem = result.find('a', class_='result__url')
+                        result_url = url_elem.get('href') if url_elem else ""
+                        if not result_url.startswith('http'):
+                            # Handle relative URLs
+                            result_url = f"https://{result_url}" if result_url else ""
+                        
+                        # Extract snippet
+                        snippet_elem = result.find('a', class_='result__snippet')
+                        snippet = snippet_elem.get_text(strip=True) if snippet_elem else "No description available"
+                        
+                        results.append({
+                            "title": title,
+                            "url": result_url,
+                            "snippet": snippet
+                        })
+                        
+                        if len(results) >= max_results:
+                            break
+                    except Exception as e:
+                        print(f"Error parsing search result: {e}")
+                        continue
+                
+                if not results:
+                    # Return a helpful message if no results found
+                    return [{
+                        "title": "No results found",
+                        "url": "",
+                        "snippet": f"Could not find any results for '{query}'. The search service may be temporarily unavailable."
+                    }]
+                
+                return results
+                
+        except Exception as e:
+            import traceback
+            print(f"Web search error: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
+            # Return error as a result instead of raising
+            return [{
+                "title": "Search Error",
+                "url": "",
+                "snippet": f"Web search encountered an error: {str(e)}. Please try again later."
+            }]
+    
+    @staticmethod
+    async def llm_query(prompt: str, system_prompt: str = None, model: str = "gpt-3.5-turbo", max_tokens: int = 500) -> Dict[str, Any]:
+        """
+        Query an LLM (OpenAI) for intelligent responses.
+        
+        Args:
+            prompt: The user prompt/question
+            system_prompt: Optional system prompt to guide the LLM
+            model: OpenAI model to use (default: gpt-3.5-turbo)
+            max_tokens: Maximum tokens in response
+            
+        Returns:
+            Dict with response and metadata
+        """
+        try:
+            from openai import OpenAI
+            from app.core.config import settings
+            
+            if not settings.OPENAI_API_KEY:
+                return {
+                    "success": False,
+                    "error": "OpenAI API key not configured. Please add OPENAI_API_KEY to .env file."
+                }
+            
+            client = OpenAI(api_key=settings.OPENAI_API_KEY)
+            
+            # Build messages
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": prompt})
+            
+            # Call OpenAI
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=0.7
+            )
+            
+            return {
+                "success": True,
+                "response": response.choices[0].message.content,
+                "model": response.model,
+                "tokens_used": response.usage.total_tokens,
+                "prompt_tokens": response.usage.prompt_tokens,
+                "completion_tokens": response.usage.completion_tokens
+            }
+            
+        except Exception as e:
+            import traceback
+            print(f"LLM query error: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return {
+                "success": False,
+                "error": f"LLM query failed: {str(e)}"
+            }
 

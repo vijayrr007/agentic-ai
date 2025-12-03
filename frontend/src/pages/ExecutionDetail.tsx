@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Clock, CheckCircle, XCircle, Loader, FileText } from 'lucide-react'
+import { ArrowLeft, Clock, CheckCircle, XCircle, Loader, FileText, Radio } from 'lucide-react'
 import { apiClient } from '@/api/client'
 
 interface Execution {
@@ -21,19 +21,72 @@ export default function ExecutionDetail() {
   const [execution, setExecution] = useState<Execution | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [streamingLogs, setStreamingLogs] = useState<string[]>([])
+  const [isStreaming, setIsStreaming] = useState(false)
+  const logsEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (id) {
       fetchExecution()
-      // Auto-refresh every 3 seconds if still running
-      const interval = setInterval(() => {
-        if (execution?.status === 'pending' || execution?.status === 'running') {
-          fetchExecution()
-        }
-      }, 3000)
-      return () => clearInterval(interval)
+      connectToStream()
     }
-  }, [id, execution?.status])
+  }, [id])
+  
+  const connectToStream = () => {
+    if (!id) return
+    
+    const eventSource = new EventSource(`http://localhost:8000/api/v1/executions/${id}/stream`)
+    setIsStreaming(true)
+    
+    eventSource.addEventListener('log', (event) => {
+      const logLine = event.data
+      setStreamingLogs(prev => [...prev, logLine])
+      // Auto-scroll to bottom
+      setTimeout(() => {
+        logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    })
+    
+    eventSource.addEventListener('status', (event) => {
+      const data = JSON.parse(event.data)
+      setExecution(prev => prev ? { ...prev, status: data.status } : null)
+    })
+    
+    eventSource.addEventListener('tool_result', (event) => {
+      const result = JSON.parse(event.data)
+      console.log('Tool result:', result)
+      // Could display intermediate results here
+    })
+    
+    eventSource.addEventListener('completed', (event) => {
+      const data = JSON.parse(event.data)
+      setExecution(prev => prev ? {
+        ...prev,
+        status: data.status,
+        output_data: data.output_data,
+        error_message: data.error_message
+      } : null)
+      setIsStreaming(false)
+      eventSource.close()
+      // Fetch final state
+      fetchExecution()
+    })
+    
+    eventSource.addEventListener('error', (event: any) => {
+      const data = event.data ? JSON.parse(event.data) : {}
+      setError(data.error || 'Stream error')
+    })
+    
+    eventSource.onerror = () => {
+      setIsStreaming(false)
+      eventSource.close()
+    }
+    
+    return () => {
+      eventSource.close()
+      setIsStreaming(false)
+    }
+  }
 
   const fetchExecution = async () => {
     try {
@@ -232,11 +285,28 @@ export default function ExecutionDetail() {
 
       {/* Logs */}
       <div className="rounded-lg border bg-card p-6">
-        <h2 className="text-xl font-semibold mb-4">Execution Logs</h2>
-        {execution.logs ? (
-          <pre className="bg-black text-green-400 p-4 rounded-lg overflow-x-auto text-sm font-mono">
-            {execution.logs}
-          </pre>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Execution Logs</h2>
+          {isStreaming && (
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 border border-green-300">
+              <Radio className="h-4 w-4 text-green-600 animate-pulse" />
+              <span className="text-sm font-medium text-green-800">Live</span>
+            </div>
+          )}
+        </div>
+        
+        {streamingLogs.length > 0 || execution.logs ? (
+          <div className="bg-black text-green-400 p-4 rounded-lg overflow-x-auto text-sm font-mono max-h-96 overflow-y-auto">
+            {/* Show streaming logs first */}
+            {streamingLogs.map((log, index) => (
+              <div key={`stream-${index}`}>{log}</div>
+            ))}
+            {/* Show stored logs if no streaming logs */}
+            {streamingLogs.length === 0 && execution.logs && (
+              <pre>{execution.logs}</pre>
+            )}
+            <div ref={logsEndRef} />
+          </div>
         ) : (
           <p className="text-muted-foreground text-center py-8">
             {execution.status === 'pending' ? 'Waiting to start...' : 'No logs available'}

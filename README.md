@@ -20,7 +20,7 @@ A full-featured platform for developers and platform engineers to create, manage
 
 ## Prerequisites
 
-- Python 3.12+ (you have 3.14.0 ✓)
+- Python 3.12
 - Node.js 24+ (you have v24.5.0 ✓)
 - PostgreSQL 16+ (needs installation)
 - Homebrew (you have 4.6.16 ✓)

@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import AgentsList from './pages/AgentsList'
 import AgentCreate from './pages/AgentCreate'
 import AgentDetail from './pages/AgentDetail'
+import AgentChat from './pages/AgentChat'
 import ExecutionsList from './pages/ExecutionsList'
 import ExecutionDetail from './pages/ExecutionDetail'
 import Marketplace from './pages/Marketplace'
@@ -21,6 +22,8 @@ function App() {
         <Route path="/agents/new" element={<AgentCreate />} />
         <Route path="/agents/:id" element={<AgentDetail />} />
         <Route path="/agents/:id/edit" element={<AgentCreate />} />
+        <Route path="/agents/:agentId/chat" element={<AgentChat />} />
+        <Route path="/agents/:agentId/chat/:conversationId" element={<AgentChat />} />
         <Route path="/executions" element={<ExecutionsList />} />
         <Route path="/executions/:id" element={<ExecutionDetail />} />
         <Route path="/marketplace" element={<Marketplace />} />

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -25,6 +26,8 @@ class Execution(Base):
     id = Column(String, primary_key=True, default=generate_uuid)
     agent_id = Column(String, ForeignKey("agents.id", ondelete="CASCADE"), nullable=False)
     status = Column(SQLEnum(ExecutionStatus), nullable=False, default=ExecutionStatus.pending)
+    input_data = Column(JSONB, nullable=True)
+    output_data = Column(JSONB, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     logs = Column(Text, nullable=True)

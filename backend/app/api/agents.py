@@ -40,6 +40,7 @@ async def create_agent(agent_data: AgentCreate, db: Session = Depends(get_db)):
         workspace_id=agent_data.workspace_id,
         name=agent_data.name,
         description=agent_data.description,
+        system_prompt=agent_data.system_prompt,
         definition_type=agent_data.definition_type.value,
         definition=agent_data.definition
     )

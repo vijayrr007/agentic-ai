@@ -13,6 +13,7 @@ class DefinitionType(str, Enum):
 class AgentBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
+    system_prompt: Optional[str] = None
     definition_type: DefinitionType = DefinitionType.ui
     definition: Dict[str, Any]
 
@@ -24,6 +25,7 @@ class AgentCreate(AgentBase):
 class AgentUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    system_prompt: Optional[str] = None
     definition_type: Optional[DefinitionType] = None
     definition: Optional[Dict[str, Any]] = None
 

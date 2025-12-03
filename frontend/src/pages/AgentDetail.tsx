@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Save, Play, Trash2 } from 'lucide-react'
+import { ArrowLeft, Save, Play, Trash2, MessageCircle } from 'lucide-react'
 import { apiClient } from '@/api/client'
 
 interface Agent {
   id: string
   name: string
   description: string
+  system_prompt?: string
   definition_type: string
   definition: {
     tools: string[]
@@ -30,7 +31,10 @@ export default function AgentDetail() {
   // Editable fields
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [systemPrompt, setSystemPrompt] = useState('')
   const [selectedTools, setSelectedTools] = useState<string[]>([])
+  const [showRunDialog, setShowRunDialog] = useState(false)
+  const [runInputs, setRunInputs] = useState<Record<string, string>>({})
   
   const availableTools = [
     { id: 'web_search', label: 'Web Search', status: '⚠️ Placeholder' },
@@ -53,6 +57,7 @@ export default function AgentDetail() {
       setAgent(agentData)
       setName(agentData.name)
       setDescription(agentData.description || '')
+      setSystemPrompt(agentData.system_prompt || '')
       setSelectedTools(agentData.definition?.tools || [])
     } catch (err: any) {
       console.error('Error fetching agent:', err)
@@ -89,6 +94,7 @@ export default function AgentDetail() {
       const response = await apiClient.put(`/v1/agents/${id}`, {
         name,
         description,
+        system_prompt: systemPrompt,
         definition: {
           ...agent?.definition,
           tools: selectedTools
@@ -142,15 +148,26 @@ export default function AgentDetail() {
     }
   }
 
+  const handleRunClick = () => {
+    // Determine what inputs are needed based on agent tools
+    if (agent?.definition?.tools?.includes('web_search')) {
+      setRunInputs({ query: '' })
+    } else {
+      setRunInputs({})
+    }
+    setShowRunDialog(true)
+  }
+
   const handleRun = async () => {
     setMessage(null)
     setSaving(true)
+    setShowRunDialog(false)
 
     try {
-      // Create an execution
+      // Create an execution with user inputs
       const response = await apiClient.post('/v1/executions', {
         agent_id: id,
-        input_data: {
+        inputs: Object.keys(runInputs).length > 0 ? runInputs : {
           message: 'Manual execution triggered from UI',
           timestamp: new Date().toISOString()
         }
@@ -163,10 +180,10 @@ export default function AgentDetail() {
         text: `Agent execution started! Execution ID: ${executionId}`
       })
 
-      // Redirect to execution detail page after 2 seconds
+      // Redirect to execution detail page after 1 second
       setTimeout(() => {
         navigate(`/executions/${executionId}`)
-      }, 2000)
+      }, 1000)
     } catch (error: any) {
       let errorMessage = 'Failed to start agent execution'
       
@@ -236,6 +253,61 @@ export default function AgentDetail() {
 
   return (
     <div className="space-y-6">
+      {/* Run Agent Dialog */}
+      {showRunDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold mb-4">Run Agent: {agent?.name}</h3>
+            
+            <div className="space-y-4">
+              {Object.keys(runInputs).length > 0 ? (
+                <>
+                  {Object.entries(runInputs).map(([key, value]) => (
+                    <div key={key}>
+                      <label className="block text-sm font-medium mb-2 capitalize">
+                        {key === 'query' && agent?.definition?.tools?.includes('web_search') ? 'Search Query' : key}
+                      </label>
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => setRunInputs(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder={
+                          key === 'query' && agent?.definition?.tools?.includes('web_search')
+                            ? 'Enter your search query...'
+                            : `Enter ${key}...`
+                        }
+                        autoFocus
+                      />
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  This agent doesn't require any inputs. Click "Start Execution" to run it.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowRunDialog(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRun}
+                disabled={Object.values(runInputs).some(v => !v.trim()) && Object.keys(runInputs).length > 0}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Start Execution
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -250,8 +322,15 @@ export default function AgentDetail() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Link
+            to={`/agents/${id}/chat`}
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Chat
+          </Link>
           <button
-            onClick={handleRun}
+            onClick={handleRunClick}
             disabled={saving}
             className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -309,6 +388,18 @@ export default function AgentDetail() {
             onChange={(e) => setDescription(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2"
             placeholder="What does this agent do?"
+          />
+        </div>
+
+        {/* System Prompt */}
+        <div>
+          <label className="block text-sm font-medium mb-2">System Prompt</label>
+          <textarea
+            rows={4}
+            value={systemPrompt}
+            onChange={(e) => setSystemPrompt(e.target.value)}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2"
+            placeholder="Optional: Instructions for how the agent should behave (e.g., 'You are a helpful assistant that...')"
           />
         </div>
 

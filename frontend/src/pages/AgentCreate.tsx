@@ -14,6 +14,7 @@ export default function AgentCreate() {
   // Form state
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [systemPrompt, setSystemPrompt] = useState('')
   const [selectedTools, setSelectedTools] = useState<string[]>([])
 
   const handleToolToggle = (tool: string) => {
@@ -60,6 +61,7 @@ export default function AgentCreate() {
         workspace_id: workspaceId,
         name,
         description,
+        system_prompt: systemPrompt,
         definition_type: definitionType,
         definition: {
           tools: selectedTools,
@@ -201,6 +203,16 @@ export default function AgentCreate() {
                 rows={3}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">System Prompt</label>
+              <textarea
+                placeholder="Optional: Instructions for how the agent should behave (e.g., 'You are a helpful assistant that...')"
+                rows={4}
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
                 className="w-full rounded-lg border border-input bg-background px-3 py-2"
               />
             </div>
